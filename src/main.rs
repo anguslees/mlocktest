@@ -7,6 +7,7 @@ use std::io::{self, IoSlice, Write};
 use std::iter;
 use std::os::unix::io::AsRawFd;
 use std::ptr;
+use std::slice;
 
 fn writen(mut f: impl Write, mut nbytes: usize) -> io::Result<()> {
     const BUFSIZE: usize = 1024 * 1024;
@@ -28,6 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg(
             Arg::with_name("size")
                 .short("n")
+                .long("size")
                 .takes_value(true)
                 .required(true)
                 .help("Size to allocate (MiB)"),
@@ -35,9 +37,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg(
             Arg::with_name("file")
                 .short("f")
+                .long("file")
                 .takes_value(true)
                 .required(true)
                 .help("File to generate/mmap"),
+        )
+        .arg(
+            Arg::with_name("lock")
+                .long("lock")
+                .help("memlock mmaped region"),
         )
         .arg(
             Arg::with_name("pause")
@@ -47,6 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_matches();
 
     let do_pause = matches.is_present("pause");
+    let do_memlock = matches.is_present("lock");
 
     let path = matches.value_of("file").expect("--file is required");
     let file = OpenOptions::new()
@@ -63,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let size = size_mb * 1024 * 1024;
     writen(&file, size)?;
 
-    unsafe {
+    let mmap_buf = unsafe {
         let ptr = mmap(
             ptr::null::<c_void>() as *mut c_void,
             size,
@@ -72,8 +81,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             file.as_raw_fd(),
             0,
         )?;
-        mlock(ptr, size)?;
-        // NB: leaks mmapped buf
+
+        // NB: no munmap - leaks mmapped buf
+        slice::from_raw_parts::<'static, u8>(ptr as *const u8, size)
+    };
+
+    if do_memlock {
+        unsafe {
+            mlock(mmap_buf.as_ptr() as *const c_void, mmap_buf.len())?;
+        }
     }
 
     if do_pause {
