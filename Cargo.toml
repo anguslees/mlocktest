@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 clap = "2.34"
-nix = "0.24"
+nix = "0.25"
 
 [profile.release]
 # https://github.com/rust-lang/rust/issues/72110
