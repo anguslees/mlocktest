@@ -35,7 +35,7 @@ WORKDIR /usr/src/mlocktest
 COPY . .
 RUN cargo install --target=${RUST_TARGET} --path .
 
-FROM --platform=$TARGETPLATFORM alpine:3.15@sha256:19b4bcc4f60e99dd5ebdca0cbce22c503bbcff197549d7e19dab4f22254dc864
+FROM --platform=$TARGETPLATFORM alpine:3.20@sha256:b89d9c93e9ed3597455c90a0b88a8bbb5cb7188438f70953fede212a0c4394e0
 
 COPY --from=build /usr/local/cargo/bin/ /usr/local/bin/
 
